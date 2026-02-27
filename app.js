@@ -3,7 +3,6 @@ const rowsBody = document.getElementById('rowsBody');
 const addRowBtn = document.getElementById('addRowBtn');
 
 const TABLE = 'trip_checklist_rows';
-let supabase;
 let rows = [];
 let saveTimers = new Map();
 
@@ -12,30 +11,58 @@ function setStatus(msg, isError = false) {
   statusEl.style.color = isError ? '#ff9f9f' : 'var(--muted)';
 }
 
+function apiHeaders() {
+  return {
+    apikey: window.SUPABASE_ANON_KEY,
+    Authorization: `Bearer ${window.SUPABASE_ANON_KEY}`,
+    'Content-Type': 'application/json',
+    Prefer: 'return=representation'
+  };
+}
+
+async function api(path, options = {}) {
+  const res = await fetch(`${window.SUPABASE_URL}/rest/v1/${path}`, {
+    ...options,
+    headers: { ...apiHeaders(), ...(options.headers || {}) }
+  });
+  const text = await res.text();
+  let data;
+  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+  if (!res.ok) throw new Error((data && data.message) || `HTTP ${res.status}`);
+  return data;
+}
+
 function debounceSave(id, field, value) {
   const key = `${id}:${field}`;
   if (saveTimers.has(key)) clearTimeout(saveTimers.get(key));
-  const t = setTimeout(() => saveField(id, field, value), 500);
+  const t = setTimeout(() => saveField(id, field, value), 450);
   saveTimers.set(key, t);
 }
 
 async function saveField(id, field, value) {
-  setStatus('A guardar…');
-  const { error } = await supabase
-    .from(TABLE)
-    .update({ [field]: value, updated_at: new Date().toISOString() })
-    .eq('id', id);
-  if (error) return setStatus(`Erro ao guardar: ${error.message}`, true);
-  setStatus('Guardado.');
+  try {
+    setStatus('A guardar…');
+    await api(`${TABLE}?id=eq.${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ [field]: value, updated_at: new Date().toISOString() })
+    });
+    setStatus('Guardado.');
+  } catch (e) {
+    setStatus(`Erro ao guardar: ${e.message}`, true);
+  }
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function rowTemplate(r, idx) {
   const tr = document.createElement('tr');
   tr.innerHTML = `
     <td>${idx + 1}</td>
-    <td><input type="text" data-id="${r.id}" data-field="campo" value="${(r.campo || '').replace(/"/g, '&quot;')}" placeholder="Ex: Botas de trilho"></td>
-    <td><input type="text" data-id="${r.id}" data-field="praia" value="${(r.praia || '').replace(/"/g, '&quot;')}" placeholder="Ex: Protetor solar"></td>
-    <td><input type="text" data-id="${r.id}" data-field="neve" value="${(r.neve || '').replace(/"/g, '&quot;')}" placeholder="Ex: Casaco térmico"></td>
+    <td><input type="text" data-id="${r.id}" data-field="campo" value="${esc(r.campo)}" placeholder="Ex: Botas de trilho"></td>
+    <td><input type="text" data-id="${r.id}" data-field="praia" value="${esc(r.praia)}" placeholder="Ex: Protetor solar"></td>
+    <td><input type="text" data-id="${r.id}" data-field="neve" value="${esc(r.neve)}" placeholder="Ex: Casaco térmico"></td>
     <td><button class="danger" data-delete="${r.id}">Apagar</button></td>
   `;
   return tr;
@@ -47,38 +74,40 @@ function render() {
 }
 
 async function loadRows() {
-  setStatus('A carregar dados…');
-  const { data, error } = await supabase
-    .from(TABLE)
-    .select('*')
-    .order('ord', { ascending: true });
-
-  if (error) return setStatus(`Erro a ler dados: ${error.message}`, true);
-  rows = data || [];
-  render();
-  setStatus('Pronto.');
+  try {
+    setStatus('A carregar dados…');
+    rows = await api(`${TABLE}?select=*&order=ord.asc`);
+    render();
+    setStatus('Pronto.');
+  } catch (e) {
+    setStatus(`Erro a ler dados: ${e.message}`, true);
+  }
 }
 
 async function addRow() {
-  const nextOrd = rows.length ? Math.max(...rows.map(r => r.ord || 0)) + 1 : 1;
-  const { data, error } = await supabase
-    .from(TABLE)
-    .insert({ ord: nextOrd, campo: '', praia: '', neve: '' })
-    .select('*')
-    .single();
-
-  if (error) return setStatus(`Erro ao criar linha: ${error.message}`, true);
-  rows.push(data);
-  render();
-  setStatus('Linha criada.');
+  try {
+    const nextOrd = rows.length ? Math.max(...rows.map(r => r.ord || 0)) + 1 : 1;
+    const created = await api(TABLE, {
+      method: 'POST',
+      body: JSON.stringify([{ ord: nextOrd, campo: '', praia: '', neve: '' }])
+    });
+    rows.push(created[0]);
+    render();
+    setStatus('Linha criada.');
+  } catch (e) {
+    setStatus(`Erro ao criar linha: ${e.message}`, true);
+  }
 }
 
 async function deleteRow(id) {
-  const { error } = await supabase.from(TABLE).delete().eq('id', id);
-  if (error) return setStatus(`Erro ao apagar: ${error.message}`, true);
-  rows = rows.filter(r => r.id !== id);
-  render();
-  setStatus('Linha apagada.');
+  try {
+    await api(`${TABLE}?id=eq.${id}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
+    rows = rows.filter(r => r.id !== id);
+    render();
+    setStatus('Linha apagada.');
+  } catch (e) {
+    setStatus(`Erro ao apagar: ${e.message}`, true);
+  }
 }
 
 function bindEvents() {
@@ -105,7 +134,6 @@ async function init() {
     return setStatus('Configura o ficheiro supabase-config.js com URL e ANON KEY.', true);
   }
 
-  supabase = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
   bindEvents();
   await loadRows();
 }
