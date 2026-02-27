@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Checklist de Férias</title>
+  <style>
+    :root {
+      --bg1:#c8d8ff;
+      --bg2:#f5dcff;
+      --glass: rgba(255,255,255,.46);
+      --line: rgba(255,255,255,.55);
+      --text:#0f172a;
+      --muted:#475569;
+      --accent:#0a84ff;
+      --danger:#ff3b30;
+    }
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Arial, sans-serif; }
+    body {
+      margin:0;
+      color:var(--text);
+      background:
+        radial-gradient(1200px 700px at -10% -20%, #b9ccff 0%, transparent 60%),
+        radial-gradient(1200px 700px at 110% 20%, #ffd9ef 0%, transparent 55%),
+        linear-gradient(160deg, var(--bg1), var(--bg2));
+      min-height:100vh;
+    }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 16px; }
+    h1 { margin: 0 0 4px; font-size: 24px; letter-spacing:-.3px; }
+    p { margin: 0 0 14px; color: var(--muted); }
+    .toolbar { display:flex; gap:8px; margin-bottom:12px; }
+    button {
+      border:1px solid var(--line);
+      background: var(--glass);
+      color:var(--text);
+      border-radius:14px;
+      padding:10px 12px;
+      font-weight:600;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow: 0 8px 20px rgba(15,23,42,.08);
+    }
+    button:hover { border-color: var(--accent); }
+    .danger { border-color: rgba(255,59,48,.4); color:#7f1d1d; }
+    .table-wrap {
+      overflow-x:auto;
+      border:1px solid var(--line);
+      border-radius:18px;
+      background: var(--glass);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow: 0 20px 40px rgba(15,23,42,.10);
+    }
+    table { width:100%; min-width:680px; border-collapse: collapse; }
+    th, td { border-bottom:1px solid rgba(148,163,184,.25); padding:10px; vertical-align: top; }
+    th { color:#1e293b; text-align:left; font-size:13px; letter-spacing:.3px; }
+    input[type="text"] {
+      width:100%;
+      background: rgba(255,255,255,.72);
+      color:var(--text);
+      border:1px solid rgba(148,163,184,.35);
+      border-radius:12px;
+      padding:10px;
+    }
+    input[type="text"]:focus { outline:none; border-color:var(--accent); }
+    .status { margin-top:10px; font-size:13px; color:var(--muted); min-height:18px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Checklist de Férias</h1>
+    <p>Dados persistentes via Supabase. Edita, adiciona e apaga linhas.</p>
+
+    <div class="toolbar">
+      <button id="addRowBtn">+ Nova linha</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:70px;">#</th>
+            <th>Férias de Campo</th>
+            <th>Férias de Praia</th>
+            <th>Férias de Neve</th>
+            <th style="width:90px;">Ação</th>
+          </tr>
+        </thead>
+        <tbody id="rowsBody"></tbody>
+      </table>
+    </div>
+
+    <div id="status" class="status">A ligar à base de dados…</div>
+  </div>
+
+  <script src="./supabase-config.v2.js"></script>
+  <script src="./app.v2.js"></script>
+</body>
+</html>
