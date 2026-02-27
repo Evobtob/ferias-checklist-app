@@ -5,6 +5,7 @@ const addRowBtn = document.getElementById('addRowBtn');
 const TABLE = 'trip_checklist_rows';
 let rows = [];
 let saveTimers = new Map();
+let canDelete = false;
 
 function setStatus(msg, isError = false) {
   statusEl.textContent = msg;
@@ -63,7 +64,7 @@ function rowTemplate(r, idx) {
     <td><input type="text" data-id="${r.id}" data-field="campo" value="${esc(r.campo)}" placeholder="Ex: Botas de trilho"></td>
     <td><input type="text" data-id="${r.id}" data-field="praia" value="${esc(r.praia)}" placeholder="Ex: Protetor solar"></td>
     <td><input type="text" data-id="${r.id}" data-field="neve" value="${esc(r.neve)}" placeholder="Ex: Casaco térmico"></td>
-    <td><button class="danger" data-delete="${r.id}">Apagar</button></td>
+    <td>${canDelete ? `<button class="danger" data-delete="${r.id}">Apagar</button>` : `<span style="color:#64748b;font-size:12px;">Sem permissão</span>`}</td>
   `;
   return tr;
 }
@@ -100,6 +101,10 @@ async function addRow() {
 }
 
 async function deleteRow(id) {
+  if (!canDelete) {
+    setStatus('Sem permissão para apagar.', true);
+    return;
+  }
   try {
     await api(`${TABLE}?id=eq.${id}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
     rows = rows.filter(r => r.id !== id);
@@ -129,13 +134,27 @@ function bindEvents() {
   });
 }
 
+function loginGate() {
+  const pwd = prompt('Login necessário. Introduz a password:');
+  if (pwd !== '123') {
+    setStatus('Acesso negado. Password inválida.', true);
+    addRowBtn.disabled = true;
+    return false;
+  }
+  canDelete = false;
+  return true;
+}
+
 async function init() {
   if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY || window.SUPABASE_URL.includes('YOUR_PROJECT_REF')) {
     return setStatus('Configura o ficheiro supabase-config.js com URL e ANON KEY.', true);
   }
 
+  if (!loginGate()) return;
+
   bindEvents();
   await loadRows();
+  setStatus('Ligado. Perfil: preencher sem apagar.');
 }
 
 init();
